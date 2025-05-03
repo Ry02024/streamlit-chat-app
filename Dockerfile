@@ -26,5 +26,5 @@ COPY app.py ./
 # ポートを公開 (ドキュメント目的)
 EXPOSE ${PORT}
 
-# Streamlitサーバーを起動
-CMD ["streamlit", "run", "app.py", "--server.port", "${PORT}"]
+# Streamlitサーバーを起動 (sh -c を使う shell 形式)
+CMD ["sh", "-c", "streamlit run app.py --server.port=${PORT}"]
