@@ -1,0 +1,72 @@
+name: Build and Deploy to Cloud Run via Cloud Build
+
+# ワークフローがトリガーされるイベントを設定
+on:
+  push:
+    branches:
+      - main # mainブランチにプッシュされた時に実行
+  workflow_dispatch: # GitHub UIから手動で実行も可能にする
+
+# ジョブを定義
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest # 実行環境
+
+    # GitHub Actions から GCP へのアクセス許可を設定
+    permissions:
+      contents: 'read' # リポジトリのコードをチェックアウトするために必要
+      id-token: 'write' # Workload Identity連携でGCPに認証するために必要
+
+    steps:
+      # ---------------------------------------------
+      # Step 1: リポジトリのコードをチェックアウト
+      # ---------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------
+      # Step 2: Google Cloud への認証 (Workload Identity)
+      # ---------------------------------------------
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }} # GitHub Secretから読み込み
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }} # GitHub Secretから読み込み
+
+      # ---------------------------------------------
+      # Step 3: Google Cloud SDK (gcloud) のセットアップ
+      # ---------------------------------------------
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }} # プロジェクトIDを設定
+
+      # ---------------------------------------------
+      # Step 4: Cloud Build を使ってビルドとデプロイを実行
+      # ---------------------------------------------
+      - name: Submit build to Cloud Build
+        run: |-
+          gcloud builds submit --config cloudbuild.yaml . \
+            --substitutions=COMMIT_SHA=${{ github.sha }} \
+            # 必要に応じて他の置換変数をここで上書きできます
+            # 例: ,_REGION=${{ secrets.GCP_REGION }} \
+            # 例: ,_SERVICE_NAME=${{ secrets.SERVICE_NAME }}
+
+      # ---------------------------------------------
+      # Step 5: (オプション) デプロイされたURLなどを表示
+      # ---------------------------------------------
+      # Cloud BuildのログからURLを取得するのは少し複雑になるため、
+      # ここではCloud Runサービスの情報を取得して表示する例を示す
+      - name: Get Cloud Run service URL
+        run: |-
+          SERVICE_URL=$(gcloud run services describe ${{ secrets.SERVICE_NAME || 'streamlit-chat-app' }} \
+            --platform=managed \
+            --region=${{ secrets.GCP_REGION || 'asia-northeast1' }} \
+            --format='value(status.url)')
+          echo "Deployed URL: $SERVICE_URL"
+        env:
+           # cloudbuild.yamlと同じサービス名・リージョンを使うように secrets を参照 (デフォルト値も設定)
+           # これらの値も secrets に設定しておくことを推奨
+           SERVICE_NAME: ${{ secrets.SERVICE_NAME || 'streamlit-chat-app' }}
+           GCP_REGION: ${{ secrets.GCP_REGION || 'asia-northeast1' }}
