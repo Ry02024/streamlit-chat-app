@@ -16,58 +16,63 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ★★★ 許可ユーザーリストの読み込み (authorizationセクションから) ★★★ ---
+# --- ★★★ 許可ユーザーリストの読み込み (環境変数から) ★★★ ---
 ALLOWED_USERS = [] # デフォルトは空
 try:
-    auth_secrets = st.secrets.get("authorization", {})
-    allowed_users_data = auth_secrets.get("allowed_users", [])
-    if isinstance(allowed_users_data, list):
-         ALLOWED_USERS = allowed_users_data
+    # 環境変数からカンマ区切り文字列として読み込む想定
+    allowed_users_str = os.environ.get("ALLOWED_USERS_STR", "")
+    if allowed_users_str:
+        ALLOWED_USERS = [email.strip() for email in allowed_users_str.split(',') if email.strip()]
+        print("DEBUG: Allowed users loaded from env var.")
     else:
-         try:
-             ALLOWED_USERS = json.loads(str(allowed_users_data).replace("'", '"'))
-             if not isinstance(ALLOWED_USERS, list): ALLOWED_USERS = []
-         except:
-             st.warning("allowed_users をリストとして解釈できませんでした。")
-             ALLOWED_USERS = []
-    if not ALLOWED_USERS:
-        st.warning("許可ユーザーリスト ([authorization]セクションのallowed_users) が secrets.toml に設定されていないか空です。")
+        # 環境変数が設定されていない場合の警告
+        st.warning("許可ユーザーリスト (ALLOWED_USERS_STR env var) が設定されていません。")
 except Exception as e:
     st.error(f"許可ユーザーリストの読み込み/パースに失敗: {e}")
-    ALLOWED_USERS = []
+    ALLOWED_USERS = [] # エラー時は誰も入れない
 
-# --- Firebase Admin SDK 初期化 (重複初期化防止版) ---
+# --- Firebase Admin SDK 初期化 ---
 if not firebase_admin._apps:
     try:
-        cred_dict = None
-        if 'firebase_credentials' in st.secrets:
-            cred_dict = dict(st.secrets["firebase_credentials"])
-        elif 'FIREBASE_CREDENTIALS_JSON' in os.environ:
+        # 環境変数またはデフォルト認証情報を使用
+        if 'FIREBASE_CREDENTIALS_JSON' in os.environ:
             cred_json_str = os.environ.get("FIREBASE_CREDENTIALS_JSON")
-            if cred_json_str: cred_dict = json.loads(cred_json_str)
+            if cred_json_str:
+                 cred_dict = json.loads(cred_json_str)
+                 cred = credentials.Certificate(cred_dict)
+                 firebase_admin.initialize_app(cred)
+                 print("DEBUG: Admin SDK Initialized from env var.")
+            else:
+                 st.error("CRITICAL ERROR: Env var FIREBASE_CREDENTIALS_JSON is empty.")
+                 st.stop()
         else:
              firebase_admin.initialize_app()
-             cred_dict = "initialized_default"
-        if cred_dict and cred_dict != "initialized_default":
-             cred = credentials.Certificate(cred_dict)
-             firebase_admin.initialize_app(cred)
+             print("DEBUG: Admin SDK Initialized with default credentials.")
     except ValueError as e:
-        if "The default Firebase app already exists" not in str(e):
-             st.error(f"CRITICAL ERROR: Firebase Admin SDK Init ValueError: {e}")
-             st.stop()
+         if "The default Firebase app already exists" not in str(e):
+              st.error(f"CRITICAL ERROR: Firebase Admin SDK Init ValueError: {e}")
+              st.stop()
     except Exception as e:
         st.error(f"CRITICAL ERROR: Firebase Admin SDK Init Failed: {e}")
         st.stop()
 
-# --- Firebase Webアプリ設定の読み込み ---
+
+# --- Firebase Webアプリ設定の読み込み (環境変数から) ---
 firebase_config = None
 try:
-    firebase_config = dict(st.secrets["firebase_web_config"])
+    web_config_json = os.environ.get("FIREBASE_WEB_CONFIG_JSON")
+    if web_config_json:
+        firebase_config = json.loads(web_config_json)
+        print("DEBUG: Web Config Loaded from env var.")
+    else:
+        st.error("CRITICAL ERROR: FIREBASE_WEB_CONFIG_JSON environment variable not set.")
+        st.stop()
 except Exception as e:
     st.error(f"CRITICAL ERROR: Web Config Load Failed: {e}")
     st.stop()
 
 # --- Firestore クライアント初期化 ---
+# (変更なし)
 db = None
 try:
     db = firestore.client()
