@@ -6,17 +6,10 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      # -t [IMAGE_PATH]: イメージ名とタグを指定
-      # ${_REGION}-docker.pkg.dev : Artifact Registry のホスト名 (リージョンによる)
-      # ${PROJECT_ID} : GCPプロジェクトID (Cloud Buildが自動設定)
-      # ${_ARTIFACT_REPO} : Artifact Registry のリポジトリ名 (下の置換変数で指定)
-      # ${_IMAGE_NAME} : イメージ名 (下の置換変数で指定)
-      # $COMMIT_SHA : ビルドトリガーのGitコミットSHA (Cloud Buildが自動設定、一意なタグになる)
       - '-t'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${_IMAGE_NAME}:$COMMIT_SHA'
-      # '.' : Dockerfile があるディレクトリ (ビルドコンテキストのルート)
       - '.'
-    id: Build # このステップのID (後のwaitForで使用)
+    id: Build
 
   # -----------------------------------------------------
   # Step 2: ビルドしたイメージをArtifact Registryにプッシュする
@@ -25,56 +18,53 @@ steps:
     args:
       - 'push'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${_IMAGE_NAME}:$COMMIT_SHA'
-    waitFor: ['Build'] # 'Build' ステップの完了を待つ
-    id: Push # このステップのID
+    waitFor: ['Build']
+    id: Push
 
   # -----------------------------------------------------
   # Step 3: コンテナイメージをCloud Runにデプロイする
   # -----------------------------------------------------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud # gcloud コマンドを実行
+    entrypoint: gcloud
     args:
       - 'run'
       - 'deploy'
-      - '${_SERVICE_NAME}' # デプロイするCloud Runサービス名 (置換変数で指定)
+      - '${_SERVICE_NAME}' # デプロイするCloud Runサービス名
       - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${_IMAGE_NAME}:$COMMIT_SHA' # デプロイするイメージ
-      - '--region=${_REGION}' # デプロイ先のリージョン (置換変数で指定)
-      - '--service-account=${_SERVICE_ACCOUNT_EMAIL}' # Cloud Run実行サービスアカウント (置換変数で指定)
-      - '--platform=managed' # フルマネージドプラットフォームを指定
-      - '--allow-unauthenticated' # アプリへの未認証アクセスを許可 (認証はアプリ内で行う)
-      # --- ★★★ Secret Managerから環境変数を設定 (推奨) ★★★ ---
-      # --update-secrets=[ENV_VAR_NAME]=[SECRET_NAME]:[VERSION],...
+      - '--region=${_REGION}' # デプロイ先のリージョン
+      # ★★★ ここは Cloud Run "実行" SA を指定 (変更なし) ★★★
+      - '--service-account=${_RUN_SERVICE_ACCOUNT_EMAIL}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      # ★★★ Secret Managerから環境変数を設定 (変更なし) ★★★
       - '--update-secrets=FIREBASE_WEB_CONFIG_JSON=${_SECRET_WEB_CONFIG}:latest,ALLOWED_USERS_STR=${_SECRET_ALLOWED_USERS}:latest'
-      # --- (代替案) 環境変数を直接設定 (非推奨) ---
-      # - '--set-env-vars=FIREBASE_WEB_CONFIG_JSON=${_ENV_WEB_CONFIG},ALLOWED_USERS_STR=${_ENV_ALLOWED_USERS}'
-      # ----------------------------------------------------------
       # 必要に応じて他のオプションを追加
-      # 例: メモリとCPU
       # - '--memory=512Mi'
       # - '--cpu=1'
-    waitFor: ['Push'] # 'Push' ステップの完了を待つ
-    id: Deploy # このステップのID
+    waitFor: ['Push']
+    id: Deploy
 
-# ビルドされるイメージを指定 (ログなどに表示される)
+# ビルドされるイメージを指定
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${_IMAGE_NAME}:$COMMIT_SHA'
 
 # ビルド実行時に置換される変数 (デフォルト値)
-# gcloud builds submit実行時に --substitutions オプションで上書き可能
 substitutions:
-  _REGION: 'asia-northeast1' # ★ あなたのGCPリージョンに変更
-  _ARTIFACT_REPO: 'streamlit-chat-repo' # ★ あなたのArtifact Registryリポジトリ名に変更
-  _IMAGE_NAME: 'streamlit-chat-app' # ★ 任意のイメージ名に変更可能
-  _SERVICE_NAME: 'streamlit-chat-app' # ★ あなたのCloud Runサービス名に変更
-  _SERVICE_ACCOUNT_EMAIL: 'cloudrun-chat-runner@streamlit-chat-project.iam.gserviceaccount.com' # ★ あなたのCloud Run実行SAのEmailに変更
+  _REGION: 'asia-northeast1' # ★ あなたのGCPリージョン
+  _ARTIFACT_REPO: 'streamlit-chat-repo' # ★ あなたのArtifact Registryリポジトリ名
+  _IMAGE_NAME: 'streamlit-chat-app' # ★ 任意のイメージ名
+  _SERVICE_NAME: 'streamlit-chat-app' # ★ あなたのCloud Runサービス名
+  # ★★★ Cloud Run "実行" SAのEmail ★★★
+  _RUN_SERVICE_ACCOUNT_EMAIL: 'cloudrun-chat-runner@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたのCloud Run実行SAのEmail (プロジェクトID部分はCloud Buildが展開)
+  # ★★★ カスタム Cloud Build SA の Email を追加 ★★★
+  _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたが作成したカスタムSAのEmail (プロジェクトID部分はCloud Buildが展開)
   # --- Secret Managerのシークレット名 ---
-  _SECRET_WEB_CONFIG: 'firebase-web-config-json' # ★ あなたが作成したSecretの名前に変更
-  _SECRET_ALLOWED_USERS: 'allowed-users-string' # ★ あなたが作成したSecretの名前に変更
-  # --- (代替案) 環境変数直接指定用の値 ---
-  # _ENV_WEB_CONFIG: '{"apiKey":"...", ...}' # ここに直接JSON文字列を書く (非推奨)
-  # _ENV_ALLOWED_USERS: 'user1@example.com,...' # ここに直接カンマ区切り文字列を書く (非推奨)
+  _SECRET_WEB_CONFIG: 'firebase-web-config-json' # ★ あなたが作成したSecretの名前
+  _SECRET_ALLOWED_USERS: 'allowed-users-string' # ★ あなたが作成したSecretの名前
 
-# ビルドオプション (任意)
+# ビルドオプション
 options:
-  logging: CLOUD_LOGGING_ONLY # ビルドログをCloud Loggingにのみ送信
-  # machineType: 'N1_HIGHCPU_8' # 必要に応じてビルドに使用するマシンタイプを指定
+  logging: CLOUD_LOGGING_ONLY
+  # ★★★ ビルドを実行するサービスアカウントとしてカスタムSAを指定 ★★★
+  serviceAccount: ${_CUSTOM_CB_SA_EMAIL}
+  # machineType: 'N1_HIGHCPU_8'
