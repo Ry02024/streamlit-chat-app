@@ -47,24 +47,19 @@ images:
 
 # ビルド実行時に置換される変数 (デフォルト値)
 substitutions:
-  _REGION: 'asia-northeast1' # ★ あなたのGCPリージョン
-  _ARTIFACT_REPO: 'streamlit-chat-repo' # ★ あなたのArtifact Registryリポジトリ名
-  _IMAGE_NAME: 'streamlit-chat-app' # ★ 任意のイメージ名
-  _SERVICE_NAME: 'streamlit-chat-app' # ★ あなたのCloud Runサービス名
-  # ★★★ Cloud Run "実行" SAのEmail ★★★
-  _RUN_SERVICE_ACCOUNT_EMAIL: 'cloudrun-chat-runner@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたのCloud Run実行SA
-  # ★★★ カスタム Cloud Build SA の Email (重複削除) ★★★
-  _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたが作成したカスタムSA
-  # --- Secret Managerのシークレット名 ---
-  _SECRET_WEB_CONFIG: 'firebase-web-config-json' # ★ あなたが作成したSecretの名前
-  _SECRET_ALLOWED_USERS: 'allowed-users-string' # ★ あなたが作成したSecretの名前
-  # ★★★ 重複していた行を削除 ★★★
-  # _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ← この行を削除
+  # _REGION: などは substitutions: より深くインデント (例: スペース2つ)
+  _REGION: 'asia-northeast1'
+  _ARTIFACT_REPO: 'streamlit-chat-repo'
+  _IMAGE_NAME: 'streamlit-chat-app'
+  _SERVICE_NAME: 'streamlit-chat-app' # ← このあたりが44行目？
+  _RUN_SERVICE_ACCOUNT_EMAIL: 'cloudrun-chat-runner@${PROJECT_ID}.iam.gserviceaccount.com'
+  _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com'
+  _SECRET_WEB_CONFIG: 'firebase-web-config-json'
+  _SECRET_ALLOWED_USERS: 'allowed-users-string'
 
-# ビルドオプション
-# ★★★ options: は行頭から ★★★
+# options: は行頭 (substitutions: と同じレベル)
 options:
-  # ★★★ serviceAccount は options: の下にインデント (スペース2つ) ★★★
+  # serviceAccount: は options: より深くインデント (例: スペース2つ)
   serviceAccount: ${_CUSTOM_CB_SA_EMAIL}
-  # logging: CLOUD_LOGGING_ONLY # 必要であればインデントして追加
-  # machineType: 'N1_HIGHCPU_8' # 必要であればインデントして追加
+  # logging: など他のオプションも同じレベル
+  # logging: CLOUD_LOGGING_ONLY
