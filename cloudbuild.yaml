@@ -36,8 +36,8 @@ steps:
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--update-secrets=FIREBASE_WEB_CONFIG_JSON=${_SECRET_WEB_CONFIG}:latest,ALLOWED_USERS_STR=${_SECRET_ALLOWED_USERS}:latest' # Secret Manager参照
-      # - '--memory=512Mi' # 必要ならメモリ指定
-      # - '--cpu=1' # 必要ならCPU指定
+      # - '--memory=512Mi'
+      # - '--cpu=1'
     waitFor: ['Push']
     id: Deploy
 
@@ -53,12 +53,18 @@ substitutions:
   _SERVICE_NAME: 'streamlit-chat-app' # ★ あなたのCloud Runサービス名
   # ★★★ Cloud Run "実行" SAのEmail ★★★
   _RUN_SERVICE_ACCOUNT_EMAIL: 'cloudrun-chat-runner@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたのCloud Run実行SA
-  # ★★★ カスタム Cloud Build SA の Email ★★★
+  # ★★★ カスタム Cloud Build SA の Email (重複削除) ★★★
   _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたが作成したカスタムSA
   # --- Secret Managerのシークレット名 ---
   _SECRET_WEB_CONFIG: 'firebase-web-config-json' # ★ あなたが作成したSecretの名前
   _SECRET_ALLOWED_USERS: 'allowed-users-string' # ★ あなたが作成したSecretの名前
-  _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ★★★ ここに正しいカスタムSAのEmailを設定 ★★★
+  # ★★★ 重複していた行を削除 ★★★
+  # _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ← この行を削除
 
+# ビルドオプション
+# ★★★ options: は行頭から ★★★
 options:
-  serviceAccount: ${_CUSTOM_CB_SA_EMAIL} # この行はそのまま
+  # ★★★ serviceAccount は options: の下にインデント (スペース2つ) ★★★
+  serviceAccount: ${_CUSTOM_CB_SA_EMAIL}
+  # logging: CLOUD_LOGGING_ONLY # 必要であればインデントして追加
+  # machineType: 'N1_HIGHCPU_8' # 必要であればインデントして追加
