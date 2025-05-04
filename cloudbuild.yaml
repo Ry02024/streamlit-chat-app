@@ -32,15 +32,12 @@ steps:
       - '${_SERVICE_NAME}' # デプロイするCloud Runサービス名
       - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_ARTIFACT_REPO}/${_IMAGE_NAME}:$COMMIT_SHA' # デプロイするイメージ
       - '--region=${_REGION}' # デプロイ先のリージョン
-      # ★★★ ここは Cloud Run "実行" SA を指定 (変更なし) ★★★
-      - '--service-account=${_RUN_SERVICE_ACCOUNT_EMAIL}'
+      - '--service-account=${_RUN_SERVICE_ACCOUNT_EMAIL}' # Cloud Run実行サービスアカウント
       - '--platform=managed'
       - '--allow-unauthenticated'
-      # ★★★ Secret Managerから環境変数を設定 (変更なし) ★★★
-      - '--update-secrets=FIREBASE_WEB_CONFIG_JSON=${_SECRET_WEB_CONFIG}:latest,ALLOWED_USERS_STR=${_SECRET_ALLOWED_USERS}:latest'
-      # 必要に応じて他のオプションを追加
-      # - '--memory=512Mi'
-      # - '--cpu=1'
+      - '--update-secrets=FIREBASE_WEB_CONFIG_JSON=${_SECRET_WEB_CONFIG}:latest,ALLOWED_USERS_STR=${_SECRET_ALLOWED_USERS}:latest' # Secret Manager参照
+      # - '--memory=512Mi' # 必要ならメモリ指定
+      # - '--cpu=1' # 必要ならCPU指定
     waitFor: ['Push']
     id: Deploy
 
@@ -55,16 +52,18 @@ substitutions:
   _IMAGE_NAME: 'streamlit-chat-app' # ★ 任意のイメージ名
   _SERVICE_NAME: 'streamlit-chat-app' # ★ あなたのCloud Runサービス名
   # ★★★ Cloud Run "実行" SAのEmail ★★★
-  _RUN_SERVICE_ACCOUNT_EMAIL: 'cloudrun-chat-runner@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたのCloud Run実行SAのEmail (プロジェクトID部分はCloud Buildが展開)
-  # ★★★ カスタム Cloud Build SA の Email を追加 ★★★
-  _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたが作成したカスタムSAのEmail (プロジェクトID部分はCloud Buildが展開)
+  _RUN_SERVICE_ACCOUNT_EMAIL: 'cloudrun-chat-runner@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたのCloud Run実行SA
+  # ★★★ カスタム Cloud Build SA の Email ★★★
+  _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ★ あなたが作成したカスタムSA
   # --- Secret Managerのシークレット名 ---
   _SECRET_WEB_CONFIG: 'firebase-web-config-json' # ★ あなたが作成したSecretの名前
   _SECRET_ALLOWED_USERS: 'allowed-users-string' # ★ あなたが作成したSecretの名前
 
 # ビルドオプション
+# ★★★ options: は行頭から ★★★
 options:
+  # ★★★ logging: は options: の下にインデント (スペース2つ) ★★★
   logging: CLOUD_LOGGING_ONLY
-  # ★★★ ビルドを実行するサービスアカウントとしてカスタムSAを指定 ★★★
+  # ★★★ serviceAccount: は logging: と同じインデントレベル ★★★
   serviceAccount: ${_CUSTOM_CB_SA_EMAIL}
-  # machineType: 'N1_HIGHCPU_8'
+  # machineType: 'N1_HIGHCPU_8' # 必要ならインデントして追加
