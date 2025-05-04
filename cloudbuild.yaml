@@ -58,12 +58,7 @@ substitutions:
   # --- Secret Managerのシークレット名 ---
   _SECRET_WEB_CONFIG: 'firebase-web-config-json' # ★ あなたが作成したSecretの名前
   _SECRET_ALLOWED_USERS: 'allowed-users-string' # ★ あなたが作成したSecretの名前
+  _CUSTOM_CB_SA_EMAIL: 'cloudbuild-sa@${PROJECT_ID}.iam.gserviceaccount.com' # ★★★ ここに正しいカスタムSAのEmailを設定 ★★★
 
-# ビルドオプション
-# ★★★ options: は行頭から ★★★
 options:
-  # ★★★ logging: は options: の下にインデント (スペース2つ) ★★★
-  # logging: CLOUD_LOGGING_ONLY
-  # ★★★ serviceAccount: は logging: と同じインデントレベル ★★★
-  serviceAccount: ${_CUSTOM_CB_SA_EMAIL}
-  # machineType: 'N1_HIGHCPU_8' # 必要ならインデントして追加
+  serviceAccount: ${_CUSTOM_CB_SA_EMAIL} # この行はそのまま
